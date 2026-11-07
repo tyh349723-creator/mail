@@ -1,0 +1,23 @@
+server:
+  port: 10010
+
+spring:
+  application:
+    name: mall-gateway
+  cloud:
+    nacos:
+      discovery:
+        # 注册中心地址：容器内由环境变量注入 nacos:8848，本地默认 127.0.0.1:8848
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+
+mall:
+  token:
+    secret: ${MALL_TOKEN_SECRET:mall-x-jwt-secret-2026}
+  # 下游服务地址：经 Nacos 服务发现 + 客户端负载均衡（lb://服务名）
+  routes:
+    mgr-uri: lb://mall-mgr
+    alipay-uri: lb://mall-alipay
+
+logging:
+  level:
+    com.mall: info

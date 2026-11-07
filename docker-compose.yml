@@ -1,0 +1,188 @@
+# Mall-X 一键部署：Nacos + MySQL + Redis + 网关 + 业务服务 + 支付服务 + 前端
+# 启动：docker compose up -d --build
+# 前端：http://localhost:${FRONTEND_PORT:-8080}   网关：http://localhost:${GATEWAY_PORT:-10010}
+# Nacos 控制台：http://localhost:${NACOS_CONSOLE_PORT:-8849}/nacos （服务间注册地址 nacos:8848）
+# 重置数据库：docker compose down -v（会清空 mysql-data 并按 sql/mail.sql 重新初始化）
+name: mall-x
+
+services:
+  # 注册中心：三个后端服务启动后自动注册，网关按 lb://服务名 调用
+  nacos:
+    image: nacos/nacos-server:v2.4.3
+    container_name: mall-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+      JVM_XMN: 128m
+      TZ: Asia/Shanghai
+    ports:
+      # 仅暴露控制台，避免与本机 8848 冲突；服务间走容器内 8848/9848
+      - "${NACOS_CONSOLE_PORT:-8849}:8848"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8848/nacos/v1/console/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks:
+      - mall-net
+
+  mysql:
+    image: mysql:8.0
+    container_name: mall-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-123456}"
+      MYSQL_DATABASE: mail
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 仅在数据目录为空（首次启动）时执行，导入建表与种子数据
+      - ./sql/mail.sql:/docker-entrypoint-initdb.d/01-mail.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - mall-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: mall-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks:
+      - mall-net
+
+  # 业务微服务：商户/用户/购物车/订单/商品/管理端
+  mall-mgr:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: mall-backend:1.0.0
+    container_name: mall-mgr
+    restart: unless-stopped
+    command: ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/mall-mgr.jar"]
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/mail?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: "${MYSQL_ROOT_PASSWORD:-123456}"
+      SPRING_DATA_REDIS_HOST: redis
+      MALL_INTERNAL_ALIPAY_BASE: http://mall-alipay:10012
+      MALL_TOKEN_SECRET: "${MALL_TOKEN_SECRET:-mall-x-jwt-secret-2026}"
+      MALL_INTERNAL_TOKEN: "${MALL_INTERNAL_TOKEN:-mall-internal-token-2026}"
+      NACOS_SERVER_ADDR: nacos:8848
+      TZ: Asia/Shanghai
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    networks:
+      - mall-net
+
+  # 支付渠道微服务：支付/退款/钱包/模拟收银台
+  mall-alipay:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: mall-backend:1.0.0
+    container_name: mall-alipay
+    restart: unless-stopped
+    command: ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/mall-alipay.jar"]
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/mail?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: "${MYSQL_ROOT_PASSWORD:-123456}"
+      SPRING_DATA_REDIS_HOST: redis
+      MALL_INTERNAL_MGR_BASE: http://mall-mgr:10011
+      MALL_INTERNAL_TOKEN: "${MALL_INTERNAL_TOKEN:-mall-internal-token-2026}"
+      # 浏览器访问地址：收银台经网关，前端经 Nginx
+      MALL_CASHIER_BASE_URL: "${PUBLIC_GATEWAY_URL:-http://localhost:10010}"
+      MALL_FRONTEND_BASE_URL: "${PUBLIC_FRONTEND_URL:-http://localhost:8080}"
+      # 支付宝凭证从 .env 注入；三项为空时自动回退模拟收银台
+      MALL_ALIPAY_APP_ID: "${MALL_ALIPAY_APP_ID:-}"
+      MALL_ALIPAY_PRIVATE_KEY: "${MALL_ALIPAY_PRIVATE_KEY:-}"
+      MALL_ALIPAY_PUBLIC_KEY: "${MALL_ALIPAY_PUBLIC_KEY:-}"
+      MALL_ALIPAY_GATEWAY_URL: "${MALL_ALIPAY_GATEWAY_URL:-https://openapi-sandbox.dl.alipaydev.com/gateway.do}"
+      MALL_ALIPAY_NOTIFY_URL: "${MALL_ALIPAY_NOTIFY_URL:-http://localhost:10010/pay/alipay/notify}"
+      MALL_ALIPAY_RETURN_URL: "${MALL_ALIPAY_RETURN_URL:-http://localhost:10010/pay/alipay/return}"
+      NACOS_SERVER_ADDR: nacos:8848
+      TZ: Asia/Shanghai
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    networks:
+      - mall-net
+
+  # 统一网关：验签、限流、鉴权、路由
+  mall-gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: mall-backend:1.0.0
+    container_name: mall-gateway
+    restart: unless-stopped
+    command: ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/mall-gateway.jar"]
+    environment:
+      SPRING_DATA_REDIS_HOST: redis
+      MALL_TOKEN_SECRET: "${MALL_TOKEN_SECRET:-mall-x-jwt-secret-2026}"
+      NACOS_SERVER_ADDR: nacos:8848
+      TZ: Asia/Shanghai
+    ports:
+      - "${GATEWAY_PORT:-10010}:10010"
+    depends_on:
+      mall-mgr:
+        condition: service_started
+      mall-alipay:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    networks:
+      - mall-net
+
+  # 前端：Nginx 托管静态资源，/api 反向代理到网关
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: mall-frontend:1.0.0
+    container_name: mall-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - mall-gateway
+    networks:
+      - mall-net
+
+volumes:
+  mysql-data:
+  redis-data:
+
+networks:
+  mall-net:
+    driver: bridge

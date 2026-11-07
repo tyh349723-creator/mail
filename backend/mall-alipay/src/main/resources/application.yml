@@ -1,0 +1,55 @@
+server:
+  port: 10012
+
+spring:
+  application:
+    name: mall-alipay
+  # MySQL 数据源（与 mall-mgr 同库）；密码走环境变量，默认值仅用于本地演示
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/mail?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
+  cloud:
+    nacos:
+      discovery:
+        # 注册中心地址：容器内由环境变量注入 nacos:8848，本地默认 127.0.0.1:8848
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+
+# MyBatis-Plus：驼峰转下划线；主键统一走数据库自增
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+mall:
+  # 内部互调令牌（服务间使用，生产务必通过 MALL_INTERNAL_TOKEN 覆盖）
+  internal:
+    token: ${MALL_INTERNAL_TOKEN:mall-internal-token-2026}
+    mgr-base: http://localhost:10011
+  # 模拟收银台地址前缀（返回给前端 open 的收银页）
+  cashier:
+    base-url: ${MALL_CASHIER_BASE_URL:http://localhost:10012}
+  # 商城前端地址（收银台/支付结果页「返回商城」回退链接）
+  frontend:
+    base-url: ${MALL_FRONTEND_BASE_URL:http://localhost:5173}
+  # 支付宝开放平台（手机网站支付）。三项凭证齐全才启用真实支付，否则自动回退本地模拟收银台。
+  # 凭证只从环境变量读取（见根目录 .env.example），禁止把任何私钥/公钥写进代码仓库。
+  # 默认指向沙箱网关；生产环境将 gateway-url 改为 https://openapi.alipay.com/gateway.do
+  alipay:
+    gateway-url: ${MALL_ALIPAY_GATEWAY_URL:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+    app-id: ${MALL_ALIPAY_APP_ID:}
+    private-key: ${MALL_ALIPAY_PRIVATE_KEY:}
+    alipay-public-key: ${MALL_ALIPAY_PUBLIC_KEY:}
+    # 异步通知与同步跳回地址：本地联调需通过内网穿透暴露公网地址，否则依赖查单兜底
+    notify-url: ${MALL_ALIPAY_NOTIFY_URL:http://localhost:10010/pay/alipay/notify}
+    return-url: ${MALL_ALIPAY_RETURN_URL:http://localhost:10010/pay/alipay/return}
+    sign-type: ${MALL_ALIPAY_SIGN_TYPE:RSA2}
+    charset: UTF-8
+
+logging:
+  level:
+    com.mall: info

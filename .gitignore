@@ -1,0 +1,34 @@
+# ---- 环境变量与密钥（禁止提交） ----
+.env
+.env.*.local
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# ---- 构建产物 ----
+backend/**/target/
+frontend/node_modules/
+frontend/dist/
+*.jar
+*.class
+
+# ---- 日志与临时文件 ----
+*.log
+logs/
+*.tmp
+*.bak
+
+# ---- IDE / 系统 ----
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# ---- 本地数据库与上传文件 ----
+mysql-data/
+redis-data/
+uploads/

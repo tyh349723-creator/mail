@@ -1,0 +1,47 @@
+server:
+  port: 10011
+
+spring:
+  application:
+    name: mall-mgr
+  # MySQL 数据源（服务名 MySQL80，即本机 3306 端口）
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/mail?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
+  data:
+    redis:                       # Redis：可用即启用（限流/库存/锁），缺失自动降级内存实现
+      host: localhost
+      port: 6379
+  cloud:
+    nacos:
+      discovery:
+        # 注册中心地址：容器内由环境变量注入 nacos:8848，本地默认 127.0.0.1:8848
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+
+# MyBatis-Plus：驼峰转下划线（merchantNo -> merchant_no）；主键统一走数据库自增
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+mall:
+  # 商户端/用户端/管理端登录令牌有效期（秒）
+  token:
+    expire-seconds: 7200
+    secret: ${MALL_TOKEN_SECRET:mall-x-jwt-secret-2026}
+  # mgr 直连 alipay 内部服务地址（走内部 token 头，不经网关验签）
+  internal:
+    alipay-base: http://localhost:10012
+    token: ${MALL_INTERNAL_TOKEN:mall-internal-token-2026}
+  # 订单支付超时时间（分钟）：超时未支付自动取消并释放库存
+  order:
+    timeout-minutes: 10
+
+logging:
+  level:
+    com.mall: info
