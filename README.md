@@ -100,7 +100,7 @@ npm run dev          # http://localhost:5173 （/api → 10010）
 - 核心业务接口统一 **POST + JSON**（含登录注册）
 - 请求体携带 `timestamp`（秒）、`nonce`（随机串）与业务参数，并计算签名字段 `sign`
 - 签名算法：`sign = MD5( 排序后 k=v& 参数串 + secretKey ).toUpperCase()`，复杂值（数组/对象）JSON 序列化
-- `secretKey = mall-x-secret-2026`；网关放行前缀的内部回调可使用特殊通道
+- `secretKey` 不硬编码，由环境变量 `MALL_SIGN_SECRET` 注入（网关 `mall.sign.secret` 与前端 `VITE_SIGN_SECRET` 必须一致，否则 403）；网关放行前缀的内部回调可使用特殊通道
 - 统一响应：`{ "id": "0", "message": "成功", ...业务字段 }`，`id="0"` 成功；401 未登录、403 验签失败、429 限流（"系统繁忙，请稍后再试"）
 - 分页响应字段：`total / current / size / records`
 - 用 JWT（HMAC-SHA256）鉴权：登录后请求头携带 `Authorization: Bearer <token>`

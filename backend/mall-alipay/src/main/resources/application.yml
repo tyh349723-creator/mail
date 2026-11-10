@@ -28,8 +28,11 @@ mybatis-plus:
 mall:
   # 内部互调令牌（服务间使用，生产务必通过 MALL_INTERNAL_TOKEN 覆盖）
   internal:
-    token: ${MALL_INTERNAL_TOKEN:mall-internal-token-2026}
+    token: ${MALL_INTERNAL_TOKEN:change-me-internal-token}
     mgr-base: http://localhost:10011
+  # 渠道回调验签密钥：与网关 mall.sign.secret 必须一致，生产通过 MALL_SIGN_SECRET 注入
+  sign:
+    secret: ${MALL_SIGN_SECRET:change-me-sign-secret}
   # 模拟收银台地址前缀（返回给前端 open 的收银页）
   cashier:
     base-url: ${MALL_CASHIER_BASE_URL:http://localhost:10012}

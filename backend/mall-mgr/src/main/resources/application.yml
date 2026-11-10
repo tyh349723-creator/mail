@@ -33,11 +33,13 @@ mall:
   # 商户端/用户端/管理端登录令牌有效期（秒）
   token:
     expire-seconds: 7200
-    secret: ${MALL_TOKEN_SECRET:mall-x-jwt-secret-2026}
+    # 生产环境必须通过 MALL_TOKEN_SECRET 注入，且三端保持一致
+    secret: ${MALL_TOKEN_SECRET:change-me-jwt-secret}
   # mgr 直连 alipay 内部服务地址（走内部 token 头，不经网关验签）
   internal:
     alipay-base: http://localhost:10012
-    token: ${MALL_INTERNAL_TOKEN:mall-internal-token-2026}
+    # 服务间互调令牌：生产环境必须通过 MALL_INTERNAL_TOKEN 注入
+    token: ${MALL_INTERNAL_TOKEN:change-me-internal-token}
   # 订单支付超时时间（分钟）：超时未支付自动取消并释放库存
   order:
     timeout-minutes: 10

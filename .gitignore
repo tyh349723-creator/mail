@@ -1,6 +1,10 @@
 # ---- 环境变量与密钥（禁止提交） ----
 .env
 .env.*.local
+.env.backup*
+# 前端 env 文件仅保留模板；含真实密钥的同名文件一律忽略
+.env.development.local
+.env.production.local
 *.pem
 *.key
 *.p12

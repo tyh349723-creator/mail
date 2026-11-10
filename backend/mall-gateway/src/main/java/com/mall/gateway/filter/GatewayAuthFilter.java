@@ -2,7 +2,6 @@ package com.mall.gateway.filter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mall.common.constant.StatusConst;
 import com.mall.common.redis.RedisTools;
 import com.mall.common.result.Result;
 import com.mall.common.util.JwtUtil;
@@ -57,6 +56,10 @@ public class GatewayAuthFilter implements GlobalFilter, Ordered {
     @Value("${mall.token.secret}")
     private String tokenSecret;
 
+    /** 全局请求验签密钥：由 MALL_SIGN_SECRET 环境变量注入，与前端 VITE_SIGN_SECRET 必须一致 */
+    @Value("${mall.sign.secret}")
+    private String signSecret;
+
     public GatewayAuthFilter(RedisTools redisTools) {
         this.redisTools = redisTools;
     }
@@ -82,7 +85,7 @@ public class GatewayAuthFilter implements GlobalFilter, Ordered {
 
             // ① 验签
             if (!isSignFree(path)
-                    && (!SignUtil.checkTimestamp(json) || !SignUtil.verify(json, StatusConst.SIGN_SECRET))) {
+                    && (!SignUtil.checkTimestamp(json) || !SignUtil.verify(json, signSecret))) {
                 return writeJson(exchange, Result.err("403", "签名校验失败"));
             }
             // ② 限流：固定窗口 Redis Lua（key = 路径 + 身份/匿名IP）

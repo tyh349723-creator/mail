@@ -12,7 +12,12 @@ spring:
 
 mall:
   token:
-    secret: ${MALL_TOKEN_SECRET:mall-x-jwt-secret-2026}
+    # JWT 签名密钥：生产环境必须通过 MALL_TOKEN_SECRET 注入；占位值仅用于本地跑通演示
+    secret: ${MALL_TOKEN_SECRET:change-me-jwt-secret}
+  # 全局请求验签密钥：与前端 VITE_SIGN_SECRET 必须完全一致，否则所有 POST 请求 403
+  # 生产环境必须通过 MALL_SIGN_SECRET 注入为随机长字符串，切勿使用占位值
+  sign:
+    secret: ${MALL_SIGN_SECRET:change-me-sign-secret}
   # 下游服务地址：经 Nacos 服务发现 + 客户端负载均衡（lb://服务名）
   routes:
     mgr-uri: lb://mall-mgr

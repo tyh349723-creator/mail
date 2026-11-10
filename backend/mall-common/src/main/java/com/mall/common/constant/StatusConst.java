@@ -63,7 +63,10 @@ public final class StatusConst {
     public static final String QUALIFY_ID_CARD = "id_card";
     public static final String QUALIFY_BANK = "bank";
 
-    /** 网关验签/登录取白名单前缀，登录后的接口必须携带 token */
-    public static final String SIGN_SECRET = "mall-x-secret-2026";
-    public static final String INTERNAL_TOKEN = "mall-internal-token-2026";
+    /*
+     * 注意：验签密钥（signSecret）与内部互调令牌（internalToken）不在此处以常量形式定义，
+     * 它们属于运行期机密，统一通过配置项 mall.sign.secret / mall.internal.token 从环境变量注入
+     * （见各服务的 application.yml 与根目录 .env.example 的 MALL_SIGN_SECRET / MALL_INTERNAL_TOKEN）。
+     * 严禁把真实密钥写回代码或配置文件，否则一旦公开到仓库即可被用于伪造签名绕过网关验签。
+     */
 }

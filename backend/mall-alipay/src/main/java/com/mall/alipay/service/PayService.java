@@ -47,6 +47,10 @@ public class PayService {
     @Value("${mall.cashier.base-url}")
     private String cashierBaseUrl;
 
+    /** 全局请求验签密钥：由 MALL_SIGN_SECRET 环境变量注入，与网关保持一致 */
+    @Value("${mall.sign.secret}")
+    private String signSecret;
+
     // ---------- 统一下单 ----------
 
     /** 下单：{orderNo, merchantNo, money, wayCode} → 生成支付单与收银台地址 */
@@ -149,7 +153,7 @@ public class PayService {
         if (!SignUtil.checkTimestamp(body)) {
             return Result.err("403", "回调时间戳校验失败");
         }
-        if (!SignUtil.verify(body, StatusConst.SIGN_SECRET)) {
+        if (!SignUtil.verify(body, signSecret)) {
             return Result.err("403", "回调签名校验失败");
         }
         String payOrderId = requiredStr(body, "payOrderId");
